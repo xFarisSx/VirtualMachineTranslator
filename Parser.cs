@@ -22,7 +22,6 @@ namespace VMTranslator
                               "and",
                               "or",
                               "not"};
-        string[] memoryacc = { "pop", "push" };
         
 
         public Parser(string[] lines) {
@@ -51,12 +50,17 @@ namespace VMTranslator
 
         public List<string> ParseLine(string line)
         {
+            if (line.IndexOf("/") != -1)
+            {
+                line = line.Substring(0, line.IndexOf("/"));
+            }
             List<string> splitted = line.Split(' ').ToList();
-            if (this.arithlogs.Contains(splitted[0])) return new List<string> {"C_AR" ,line };
-            else if (this.memoryacc.Contains(splitted[0])) {
+            
+            if (this.arithlogs.Contains(splitted[0])) return new List<string> {"C_AR" , splitted[0] };
+            else {
                 return new List<string> { "C_" + splitted[0].ToUpper() }.Concat(splitted).ToList();
             }
-            return new List<string> { };
+
         }
 
         public bool HasMoreCommands()
@@ -80,7 +84,7 @@ namespace VMTranslator
             return curC[2];
         }
 
-        public int Arg2() { 
+        public int Arg2() {
             return int.Parse(curC[3]);
         }
     }

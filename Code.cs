@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -18,6 +19,8 @@ namespace VMTranslator
             { "temp", "5" },
         };
         string outputF;
+        private string curF = "";
+        private int funcC = 0;
         private int labelCounter = 0;
 
         Dictionary<string, string> arithlogsSym =new Dictionary<string, string> {
@@ -31,10 +34,218 @@ namespace VMTranslator
                               { "or", "|" },
                               { "not", "!" }};
 
-        public Code(string outputF) {
-            this.outputF = Path.GetFileName(outputF);
-        
+        public Code() {
+            
         }
+
+        public void SetFileName(string fileName)
+        {
+            outputF = fileName;
+        }
+
+        public string WriteInit(bool sys)
+        {
+            string x = "";
+            if (sys)
+            {
+                
+                x = WriteCall("Sys.init", 0);
+                
+            }
+            Console.WriteLine(sys);
+            return $@"
+{(sys ? @"
+@256
+D=A
+@SP
+M=D
+
+"+x : "")}";
+        }
+
+        public string WriteLabel(string label) {
+            return $@"
+({curF}${label})";
+        }
+
+        public string WriteGoto(string label)
+        {
+            return $@"
+@{curF}${label}
+0;JMP";
+        }
+
+        public string WriteIf(string label)
+        {
+            return $@"
+@SP
+M=M-1
+A=M
+D=M
+@{curF}${label}
+D;JNE";
+        }
+
+        public string WriteFunction(string funcName, int varN)
+        {
+            funcC = 0;
+            curF = funcName;
+            string toreturn = $@"
+({funcName})";
+            for (int i = 0; i < varN; i++) {
+                toreturn = toreturn + @"
+@SP
+A=M
+M=0
+@SP
+M=M+1
+";
+                
+            }
+            return toreturn;
+        }
+
+        public string WriteCall(string funcName, int argN)
+        {
+
+            
+            string toreturn= $@"
+@{curF}$ret.{funcC}                    // Save the current state
+D=A
+@SP
+A=M
+M=D
+@SP
+M=M+1 
+
+@LCL                    // Save the current state
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1                  // Save LCL
+
+@ARG                    // Save the current state
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1                    // Save ARG
+
+@THIS                    // Save the current state
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1                    // Save THIS
+
+@THAT                    // Save the current state
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1                    // Save THAT
+
+@SP
+D=M
+@ARG
+M=D
+@{5+argN}
+D=A
+@ARG
+M=M-D
+
+@SP
+D=M
+@LCL
+M=D
+
+@{funcName}
+0;JMP
+({curF}$ret.{funcC})";
+            funcC++;
+
+
+            return toreturn;
+        }
+
+        public string WriteReturn()
+        {
+            
+
+            return $@"
+@LCL
+D=M
+@endFrame
+M=D
+
+@5
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@retAddr
+M=D
+
+@SP
+M=M-1
+A=M
+D=M
+@ARG
+A=M
+M=D
+@ARG
+D=M
+@SP
+M=D+1
+
+@1
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@THAT
+M=D
+
+@2
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@THIS
+M=D
+
+@3
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@ARG
+M=D
+
+@4
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@LCL
+M=D
+
+@retAddr
+A=M
+0;JMP";
+        }
+
+
         public string WriteAr(string com)
         {
             labelCounter++;
@@ -87,11 +298,10 @@ M=0
 @SP
 M=M+1
 
-({endLabel})
-@SP
-A=M
-M=0";
+({endLabel})";
             }
+
+            Console.WriteLine(com);
             return $@"
 @SP
 M=M-1
@@ -110,10 +320,7 @@ D=M
 A=M
 M=D
 @SP
-M=M+1
-@SP
-A=M
-M=0";
+M=M+1";
         }
 
         public string WritePushPop(string type, string arg1, string arg2)
@@ -129,10 +336,7 @@ D=A
 A=M
 M=D
 @SP
-M=M+1
-@SP
-A=M
-M=0"; }
+M=M+1"; }
                 else if (arg1 == "static")
                 {
                     return $@"
@@ -142,10 +346,7 @@ D=M
 A=M
 M=D
 @SP
-M=M+1
-@SP
-A=M
-M=0";
+M=M+1";
                 }
                 else if (arg1 == "pointer")
                 {
@@ -156,10 +357,7 @@ D=M
 A=M
 M=D
 @SP
-M=M+1
-@SP
-A=M
-M=0";
+M=M+1";
                 }
                 else if (arg1 == "temp")
                 {
@@ -170,10 +368,7 @@ D=M
 A=M
 M=D
 @SP
-M=M+1
-@SP
-A=M
-M=0";
+M=M+1";
                 }
                 else
                 {
@@ -187,10 +382,7 @@ D=M
 A=M
 M=D
 @SP
-M=M+1
-@SP
-A=M
-M=0";
+M=M+1";
                 }
             }
             else
